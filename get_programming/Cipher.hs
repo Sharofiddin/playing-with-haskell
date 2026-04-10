@@ -47,4 +47,45 @@ charToBits :: Char -> Bits
 charToBits c = intToBits (fromEnum c)
 
 bitsToInt :: Bits -> Int
+bitsToInt bits = sum (map (\x-> 2^snd x) trueLocations)
+     where size = length bits
+           indices = [size-1, size-2 .. 0]
+           trueLocations = filter (\x-> fst x == True)
+                           (zip bits indices)
+bitsToChar :: Bits -> Char
+bitsToChar bits = toEnum (bitsToInt bits)
+
+xorBool :: Bool -> Bool -> Bool
+xorBool True True = False
+xorBool False False = False
+xorBool _ _ = True
+
+xorPair :: (Bool, Bool) -> Bool
+xorPair (v1, v2) = xorBool v1 v2
+
+xor :: [Bool] -> [Bool] -> [Bool]
+xor l1 l2 = map xorPair (zip l1 l2)
+
+applyOTP' :: String -> String -> [Bits]
+applyOTP' pad text = map (\pair -> (fst pair) `xor` snd pair) (zip padBits plainTextBits)
+          where padBits = map charToBits pad
+                plainTextBits = map charToBits text
+applyOTP :: String -> String -> String
+applyOTP pad plainText = map bitsToChar (applyOTP' pad plainText)
+
+class Cipher a where
+    encode :: a -> String -> String
+    decode :: a -> String -> String
+
+data Rot = Rot
+
+instance Cipher Rot where 
+   encode Rot  = rotEncoder 
+   decode Rot  = rotDecoder 
+
+data OneTimePad = OTP String
+
+instance Cipher OneTimePad where
+   encode (OTP pad) = applyOTP pad
+   decode (OTP pad) = applyOTP pad
 

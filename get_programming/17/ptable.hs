@@ -46,4 +46,3 @@ instance Semigroup PTable where
 instance Monoid PTable where
   mempty = PTable (Events []) (Probs [])
   mappend = (<>) 
-

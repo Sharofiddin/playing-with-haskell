@@ -4,6 +4,7 @@ data Color = Red |
   Green | 
   Purple |
   Orange |
+  White |
   Brown deriving (Show, Eq)
 instance Semigroup Color where
   (<>) Red Blue = Purple
@@ -13,7 +14,13 @@ instance Semigroup Color where
   (<>) Yellow Red = Orange
   (<>) Red Yellow = Orange
   (<>) a b |  a == b = a
+    | a == White = b
+    | b == White = a
     |  all (`elem` [Red, Blue, Purple]) [a,b] = Purple
     |  all (`elem` [Yellow, Blue, Green]) [a,b] = Green
     |  all (`elem` [Yellow, Red, Orange]) [a,b] = Orange
     |  otherwise = Brown
+
+instance Monoid Color where
+  mempty = White
+  mappend = (<>)

@@ -3,9 +3,6 @@ import Data.List
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Semigroup
-import Distribution.Simple (VersionInterval)
-import GHC.IO.Encoding (argvEncoding)
-import Text.XHtml (rows, value)
 
 file1 :: [(Int, Double)]
 file1 =
@@ -136,6 +133,31 @@ meanTS (TS times values) =
     cleanVals = map fromJust justVals
     avg = mean cleanVals
 
+median :: (Real a) => [a] -> Double
+median [] = 0
+median xs = mean midElems
+  where
+    n = length xs
+    midElems =
+      if even n
+        then take 2 (drop (n `div` 2 - 1) sorted)
+        else take 1 (drop (n `div` 2) sorted)
+      where
+        sorted = sort xs
+
+medianTS :: (Real a) => TS a -> Maybe Double
+
+medianTs (TS _ []) = Nothing
+
+medianTS (TS times values) =
+  if all (== Nothing) values
+    then Nothing
+    else Just md
+  where
+    justVals = filter isJust values
+    cleanValues = map fromJust justVals
+    md = median cleanValues
+
 type CompareFunc a = a -> a -> a
 
 type TSCompareFunc a = (Int, Maybe a) -> (Int, Maybe a) -> (Int, Maybe a)
@@ -179,30 +201,41 @@ diffTS (TS times values) = TS times (Nothing : diffValues)
     shiftValues = tail values
     diffValues = zipWith diffPair shiftValues values
 
--- Moving avarage
-
-meanMaybe :: (Real a) => [Maybe a] -> Maybe Double
-meanMaybe values =
-  if Nothing `elem` values
+centerMaybe :: (Real a) => ([a] -> Double) -> [Maybe a] -> Maybe Double
+centerMaybe f [] = Nothing
+centerMaybe f vals =
+  if Nothing `elem` vals
     then Nothing
-    else Just avg
+    else Just centered
   where
-    avg = mean (map fromJust values)
+    centered = f (map fromJust vals)
 
-movingAvg :: (Real a) => [Maybe a] -> Int -> [Maybe Double]
-movingAvg [] n = []
-movingAvg vals n =
-  if length windowedVals == n
-    then meanMaybe windowedVals : movingAvg restVals n
+smooth :: (Real a) => ([Maybe a] -> Maybe Double) -> [Maybe a] -> Int -> [Maybe Double]
+smooth f [] n = []
+smooth f vals n =
+  if length windowedValues == n
+    then f windowedValues : smooth f restVals n
     else []
   where
-    windowedVals = take n vals
+    windowedValues = take n vals
     restVals = tail vals
 
-movingAvgTS :: (Real a) => TS a -> Int -> TS Double
-movingAvgTS (TS [] []) _ = TS [] []
-movingAvgTS (TS times values) n = TS times smoothedValues
+meanMaybe :: (Real a) => [Maybe a] -> Maybe Double
+meanMaybe = centerMaybe mean
+
+medianMaybe :: (Real a) => [Maybe a] -> Maybe Double
+medianMaybe = centerMaybe median
+
+movingCenterTS :: (Real a) => ([Maybe a] -> Maybe Double) -> TS a -> Int -> TS Double
+movingCenterTS f (TS [] []) n = TS [] []
+movingCenterTS f (TS times values) n = TS times smoothedValues
   where
-    means = movingAvg values n
+    means = smooth f values n
     nothings = replicate (n `div` 2) Nothing
     smoothedValues = mconcat [nothings, means, nothings]
+
+movingAvgTS :: (Real a) => TS a -> Int -> TS Double
+movingAvgTS = movingCenterTS meanMaybe
+
+movingMedianTS :: (Real a) => TS a -> Int -> TS Double
+movingMedianTS = movingCenterTS medianMaybe

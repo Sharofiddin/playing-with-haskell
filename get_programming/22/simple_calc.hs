@@ -26,4 +26,4 @@ main = do
   input <- getContents
 
   let solution = map solveStr (lines input)
-  print solution
+  mapM_ print solution

@@ -11,4 +11,3 @@ main = do
   hClose helloFile
   hClose goodByFile
   putStrLn "done"
-

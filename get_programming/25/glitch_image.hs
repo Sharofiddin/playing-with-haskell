@@ -1,3 +1,5 @@
+import Control.Monad (foldM)
+import Data.ByteString (ByteString)
 import Data.ByteString qualified as B
 import Data.ByteString.Char8 qualified as BC
 import System.Environment
@@ -41,13 +43,25 @@ randomSortSection bytes = do
   start <- randomRIO (0, rndBound)
   return (sortSection start sectionSize bytes)
 
+glitchActions :: [BC.ByteString -> IO ByteString]
+glitchActions =
+  [ randomReplaceByte,
+    randomSortSection,
+    randomReplaceByte,
+    randomSortSection,
+    randomReplaceByte
+  ]
+
 main :: IO ()
 main = do
   args <- getArgs
   let fileName = head args
   imageFile <- BC.readFile fileName
-  glitched <- randomReplaceByte imageFile
-  glitchedBySort <- randomSortSection glitched
+  glitched <-
+    foldM
+      (\bytes func -> func bytes)
+      imageFile
+      glitchActions
   let glitchedName = mconcat ["glitched_", fileName]
-  BC.writeFile glitchedName glitchedBySort
+  BC.writeFile glitchedName glitched
   print "All done"

@@ -43,12 +43,24 @@ randomSortSection bytes = do
   start <- randomRIO (0, rndBound)
   return (sortSection start sectionSize bytes)
 
+reverseBytes :: Int -> Int -> BC.ByteString -> BC.ByteString
+reverseBytes start size bytes = mconcat [before, changed, after]
+  where
+    (before, rest) = BC.splitAt start bytes
+    (target, after) = BC.splitAt size rest
+    changed = BC.reverse target
+
+randomReverseBytes :: BC.ByteString -> IO BC.ByteString
+randomReverseBytes bytes = do
+  let sectionSize = 25
+  let bytesLength = BC.length bytes
+  start <- randomRIO (0, bytesLength - sectionSize)
+  return (reverseBytes start sectionSize bytes)
+
 glitchActions :: [BC.ByteString -> IO ByteString]
 glitchActions =
-  [ randomReplaceByte,
-    randomSortSection,
-    randomReplaceByte,
-    randomSortSection,
+  [ randomSortSection,
+    randomReverseBytes,
     randomReplaceByte
   ]
 

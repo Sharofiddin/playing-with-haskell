@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import Data.ByteString qualified as B
+import Data.ByteString.Char8 qualified as B
 import Data.Maybe
 import Data.Text qualified as T
 import Data.Text.Encoding as E
@@ -158,12 +159,97 @@ makeFieldMetadata entry =
 getFieldMetadata :: [MarcDirectoryEntryRaw] -> [FieldMetadata]
 getFieldMetadata = map makeFieldMetadata
 
+type FieldText = T.Text
+
+getTextField :: MarcRecordRaw -> FieldMetadata -> FieldText
+getTextField record metadata =
+  E.decodeUtf8 fieldRaw
+  where
+    baseAddress = getBaseAddress record
+    baseRaw = B.drop baseAddress record
+    fieldRaw = B.take (fieldLength metadata) (B.drop (fieldStart metadata) baseRaw)
+
+fieldDelimter :: Char
+fieldDelimter = toEnum 31
+
+titleTag :: T.Text
+titleTag = "245"
+
+titleSubfield :: Char
+titleSubfield = 'a'
+
+authorTag :: T.Text
+authorTag = "100"
+
+authorSubfield :: Char
+authorSubfield = 'a'
+
+lookupFieldMetadata :: T.Text -> MarcRecordRaw -> Maybe FieldMetadata
+lookupFieldMetadata aTag record =
+  if null results
+    then Nothing
+    else Just (head results)
+  where
+    metadata = (getFieldMetadata . splitDirectory . getDirectory) record
+    results = filter ((== aTag) . tag) metadata
+
+lookupSubfield :: Maybe FieldMetadata -> Char -> MarcRecordRaw -> Maybe T.Text
+lookupSubfield Nothing subfield record = Nothing
+lookupSubfield (Just fieldMetadata) subfield record =
+  if null results
+    then Nothing
+    else Just ((T.drop 1 . head) results)
+  where
+    rawField = getTextField record fieldMetadata
+    subfields = T.split (== fieldDelimter) rawField
+    results = filter ((== subfield) . T.head) subfields
+
+lookupValue :: T.Text -> Char -> MarcRecordRaw -> Maybe T.Text
+lookupValue aTag subfield record =
+  lookupSubfield entryMetadata subfield record
+  where
+    entryMetadata = lookupFieldMetadata aTag record
+
+lookupAuthor :: MarcRecordRaw -> Maybe T.Text
+lookupAuthor = lookupValue authorTag authorSubfield
+
+lookupTitle :: MarcRecordRaw -> Maybe T.Text
+lookupTitle = lookupValue titleTag titleSubfield
+
+marcToPairs :: B.ByteString -> [(Maybe Title, Maybe Author)]
+marcToPairs marcStream = zip titles authors
+  where
+    records = allRecords marcStream
+    titles = map lookupTitle records
+    authors = map lookupAuthor records
+
+pairsToBooks :: [(Maybe Title, Maybe Author)] -> [Book]
+pairsToBooks pairs =
+  map
+    ( \(title, author) ->
+        Book
+          { title = fromJust title,
+            author = fromJust author
+          }
+    )
+    justPairs
+  where
+    justPairs = filter (\(title, author) -> isJust title && isJust author) pairs
+
+recordToBook :: MarcRecordRaw -> Maybe Book
+recordToBook record =
+  if isNothing maybeAuthor && isNothing maybeTitle
+    then Nothing
+    else Just (Book (fromMaybe "" maybeAuthor) (fromMaybe "" maybeTitle))
+  where
+    maybeAuthor = lookupAuthor record
+    maybeTitle = lookupTitle record
+
+processRecords :: Int -> B.ByteString -> Html
+processRecords n = booksToHtml . pairsToBooks . take n . marcToPairs
+
 main :: IO ()
 main = do
   content <- B.readFile "records.mrc"
-  let records = allRecords content
-  print (length records)
-  let aRecord = head records
-  let directory = getDirectory aRecord
-  let dirEntries = splitDirectory directory
-  print (length dirEntries)
+  let processed = processRecords 500 content
+  TIO.writeFile "books.html" processed

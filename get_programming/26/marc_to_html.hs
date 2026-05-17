@@ -77,7 +77,7 @@ type MarcRecordRaw = B.ByteString
 type MarcLeaderRaw = B.ByteString
 
 leaderLength :: Int
-leaderLength = 25
+leaderLength = 24
 
 rawToInt :: B.ByteString -> Int
 rawToInt = read . T.unpack . E.decodeUtf8
@@ -87,7 +87,6 @@ getLeader = B.take leaderLength
 
 getRecordLength :: MarcLeaderRaw -> Int
 getRecordLength leader = rawToInt (B.take 5 leader)
-
 nextAndRest :: B.ByteString -> (MarcRecordRaw, B.ByteString)
 nextAndRest bytes = (record, rest)
   where

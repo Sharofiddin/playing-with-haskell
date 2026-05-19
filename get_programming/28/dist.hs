@@ -28,6 +28,25 @@ haversine coords1 coords2 = earthRadius * c
     c = 2 * atan2 (sqrt a) (sqrt (1 - a))
     earthRadius = 3961.0
 
+haversineIO :: IO LatLong -> IO LatLong -> IO Double
+haversineIO loc1 loc2 = do
+  locLatLong1 <- loc1
+  haversine locLatLong1 <$> loc2
+
+havesineIOApp :: IO LatLong -> IO LatLong -> IO Double
+havesineIOApp loc1 loc2 = haversine <$> loc1 <*> loc2
+
 printDistance :: Maybe Double -> IO ()
 printDistance Nothing = putStrLn "Error, invalid city entered"
 printDistance (Just dist) = putStrLn (show dist ++ " miles")
+
+main :: IO ()
+main = do
+  putStrLn "Enter starting city"
+  startInput <- getLine
+  let startingCity = Map.lookup startInput locationDB
+  putStrLn "Enter dist city"
+  distInput <- getLine
+  let distCity = Map.lookup distInput locationDB
+  printDistance (haversine <$> startingCity <*> distCity)
+

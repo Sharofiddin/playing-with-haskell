@@ -27,7 +27,7 @@ describePizza (size, cost) =
     costSqInch = costPerInch (size, cost)
 
 main :: IO ()
-main =
+main =
   putStrLn result
   where
     size1 = putStrLn "What is the size of pizza 1" >> getLine >>= read
@@ -35,6 +35,5 @@ main =
     size2 = putStrLn "What is the size of pizza 2" >> getLine >>= read
     cost2 = putStrLn "What is the cost of pizza 2" >> getLine >>= read
     pizza1 = (\size cost -> return (size, cost)) size1 cost1
-    pizza2 = (size2, cost2)
-
-    comapred = pure comparePizzas <*> pizza1 <*> pizza2
+    pizza2 = (\size cost -> return (size, cost)) size2 cost2
+    comapred = comparePizzas <$> pizza1 <*> pizza2

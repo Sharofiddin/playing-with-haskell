@@ -28,12 +28,13 @@ describePizza (size, cost) =
 
 main :: IO ()
 main =
-  putStrLn result
+  res >>= putStrLn
   where
-    size1 = putStrLn "What is the size of pizza 1" >> getLine >>= read
-    cost1 = putStrLn "What is the cost of pizza 1" >> getLine >>= read
-    size2 = putStrLn "What is the size of pizza 2" >> getLine >>= read
-    cost2 = putStrLn "What is the cost of pizza 2" >> getLine >>= read
-    pizza1 = (\size cost -> return (size, cost)) size1 cost1
-    pizza2 = (\size cost -> return (size, cost)) size2 cost2
-    comapred = comparePizzas <$> pizza1 <*> pizza2
+    size1 = putStrLn "What is the size of pizza 1" >> getLine >>= (return . read)
+    cost1 = putStrLn "What is the cost of pizza 1" >> getLine >>= (return . read)
+    size2 = putStrLn "What is the size of pizza 2" >> getLine >>= (return . read)
+    cost2 = putStrLn "What is the cost of pizza 2" >> getLine >>= (return . read)
+    pizza1 = (\size cost -> (size, cost)) <$> size1 <*> cost1
+    pizza2 = (\size cost -> (size, cost)) <$> size2 <*> cost2
+    compared = comparePizzas <$> pizza1 <*> pizza2
+    res = describePizza <$> compared

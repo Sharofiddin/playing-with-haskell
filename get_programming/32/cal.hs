@@ -12,9 +12,10 @@ getDayInMonth 10 = 31
 getDayInMonth 11 = 30
 getDayInMonth 12 = 31
 
-calendar :: [[Int]]
+calendar :: [Int]
 calendar =
-  [ days | months <- [1 .. 12], let daysMax = getDayInMonth months, let days = [1 .. daysMax]
+  [ days | months <- [1 .. 12], let daysMax = getDayInMonth months, days <- [1 .. daysMax]
+    -- let days = [1..daysMax] each month its own array
   ]
 
 monthEnds :: [Int]

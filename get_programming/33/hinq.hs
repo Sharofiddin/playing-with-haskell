@@ -1,3 +1,4 @@
+import Control.Applicative (Alternative)
 import Control.Monad
 
 data Name = Name
@@ -32,12 +33,12 @@ students =
     Student 6 Junior (Name "Julia" "Kristeva")
   ]
 
-_select :: (a -> b) -> [a] -> [b]
+_select :: (Monad m) => (a -> b) -> m a -> m b
 _select prop vals = do
   val <- vals
   return (prop val)
 
-_where :: (a -> Bool) -> [a] -> [a]
+_where :: (Monad m, Alternative m) => (a -> Bool) -> m a -> m a
 _where test vals = do
   val <- vals
   guard (test val)
@@ -71,10 +72,95 @@ courses =
     Course 201 "English" 200
   ]
 
-_join :: (Eq c) => [a] -> [b] -> (a -> c) -> (b -> c) -> [(a, b)]
+_join :: (Monad m, Alternative m, Eq c) => m a -> m b -> (a -> c) -> (b -> c) -> m (a, b)
 _join data1 data2 prop1 prop2 = do
   d1 <- data1
   d2 <- data2
   let dpairs = (d1, d2)
   guard (prop1 (fst dpairs) == prop2 (snd dpairs))
   return dpairs
+
+_hinq selectQuery joinQuery whereQuery =
+  ( \joinData ->
+      (\whereResult -> selectQuery whereResult)
+        (whereQuery joinData)
+  )
+    joinQuery
+
+finalResult :: [Name]
+finalResult =
+  _hinq
+    (_select (teacherName . fst))
+    (_join teachers courses teacherId teacher)
+    (_where ((== "English") . courseTitle . snd))
+
+teacherFirstName :: [String]
+teacherFirstName =
+  _hinq
+    (_select firstName)
+    finalResult
+    (_where (\_ -> True))
+
+data HINQ m a b
+  = HINQ (m a -> m b) (m a) (m a -> m a)
+  | HINQ_ (m a -> m b) (m a)
+
+runHINQ :: (Monad m, Alternative m) => HINQ m a b -> m b
+runHINQ (HINQ sClause jClause wClause) = _hinq sClause jClause wClause
+runHINQ (HINQ_ sClause jClause) = _hinq sClause jClause (_where (\_ -> True))
+
+hinqStatement :: HINQ [] (Teacher, Course) Name
+hinqStatement =
+  HINQ
+    (_select (teacherName . fst))
+    (_join teachers courses teacherId teacher)
+    (_where ((== "English") . courseTitle . snd))
+
+hinqStmtWoWhere :: HINQ [] Name String
+hinqStmtWoWhere =
+  HINQ_
+    (_select firstName)
+    (runHINQ hinqStatement)
+
+data Enrollment = Enrollment
+  { student :: Int,
+    course :: Int
+  }
+  deriving (Show)
+
+enrollments :: [Enrollment]
+enrollments =
+  [ Enrollment 1 101,
+    Enrollment 2 101,
+    Enrollment 2 201,
+    Enrollment 3 101,
+    Enrollment 4 201,
+    Enrollment 4 101,
+    Enrollment 5 101,
+    Enrollment 6 201
+  ]
+
+studentEnrollmentsQ =
+  HINQ_
+    (_select (\(st, enrl) -> (studentName st, course enrl)))
+    (_join students enrollments studentId student)
+
+studentEnrollments = runHINQ studentEnrollmentsQ
+
+englishStudentsQ =
+  HINQ
+    (_select (fst . fst))
+    (_join studentEnrollments courses snd courseId)
+    (_where ((== "English") . courseTitle . snd))
+
+englishStudents :: [Name]
+englishStudents = runHINQ englishStudentsQ
+
+getStudentsByCourse :: String -> [Name]
+getStudentsByCourse cn =
+  runHINQ
+    ( HINQ
+        (_select (fst . fst))
+        (_join studentEnrollments courses snd courseId)
+        (_where ((== cn) . courseTitle . snd))
+    )

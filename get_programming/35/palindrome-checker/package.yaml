@@ -23,6 +23,9 @@ dependencies:
 - base >= 4.7 && < 5
 - text
 
+default-extensions:
+- OverloadedStrings
+
 ghc-options:
 - -Wall
 - -Wcompat

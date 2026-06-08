@@ -1,0 +1,24 @@
+cradle:
+  multi:
+    - path: "./Setup.hs"
+      config:
+        cradle:
+          direct:
+            arguments:
+              - "-package"
+              - "Cabal"
+    - path: "./src"
+      config:
+        cradle:
+          stack:
+            component: "palindrome-checker:lib"
+    - path: "./app/Main.hs"
+      config:
+        cradle:
+          stack:
+            component: "palindrome-checker:exe:palindrome-checker-exe"
+    - path: "./test"
+      config:
+        cradle:
+          stack:
+            component: "palindrome-checker:test:palindrome-checker-test"

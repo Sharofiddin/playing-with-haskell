@@ -1,8 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
-module Main (main) where
-
-import Data.Text as T
 import Data.Text.IO as TIO
 import Lib
 

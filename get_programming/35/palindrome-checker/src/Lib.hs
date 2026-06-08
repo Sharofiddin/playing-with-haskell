@@ -12,7 +12,6 @@ stripWhiteSpace = T.filter (not . isSpace)
 stripPunctuation :: T.Text -> T.Text
 stripPunctuation = T.filter (not . isPunctuation)
 
-
 preprocess :: T.Text -> T.Text
 preprocess = stripWhiteSpace . stripPunctuation . T.toLower
 

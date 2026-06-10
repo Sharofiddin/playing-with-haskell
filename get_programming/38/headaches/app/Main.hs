@@ -1,7 +1,10 @@
 module Main (main) where
 
-import Lib (myTake)
+import Lib
 
 main :: IO ()
 main = do
-  putStrLn "Assalomu alaykum"
+  print "Enter a number to test for primality:"
+  n <- read <$> getLine
+  let result = isPrime n
+  print (displayResult result)

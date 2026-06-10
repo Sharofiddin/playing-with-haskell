@@ -1,0 +1,8 @@
+cradle:
+  stack:
+    - path: "./src"
+      component: "http-lesson:lib"
+    - path: "./app"
+      component: "http-lesson:exe:http-lesson-exe"
+    - path: "./test"
+      component: "http-lesson:test:http-lesson-test"

@@ -51,6 +51,19 @@ instance FromJSON NOAAResult where
       <*> v .: "datacoverage"
       <*> v .: "id"
 
+instance ToJSON NOAAResult where
+  toJSON record =
+    object
+      [ "uid" .= uid record,
+        "mindate" .= mindate record,
+        "maxdate" .= maxdate record,
+        "name" .= name record,
+        "datacoverage"
+          .= datacoverage record,
+        "id"
+          .= resultId record
+      ]
+
 data ResultSet = ResultSet
   { offset :: Int,
     count :: Int,
@@ -60,12 +73,16 @@ data ResultSet = ResultSet
 
 instance FromJSON ResultSet
 
+instance ToJSON ResultSet
+
 data Metadata = Metadata
   { resultset :: ResultSet
   }
   deriving (Show, Generic)
 
 instance FromJSON Metadata
+
+instance ToJSON Metadata
 
 data NOAAResponse = NOAAResponse
   { metadata :: Metadata,
@@ -75,10 +92,23 @@ data NOAAResponse = NOAAResponse
 
 instance FromJSON NOAAResponse
 
+instance ToJSON NOAAResponse
+
 printResults :: Maybe [NOAAResult] -> IO ()
 printResults Nothing = print "error loading data"
 printResults (Just nooaResults) = do
   forM_ nooaResults (print . name)
+
+data IntList = EmptyList | Cons Int IntList deriving (Show, Generic)
+
+instance FromJSON IntList
+
+instance ToJSON IntList
+
+intListExample :: IntList
+intListExample =
+  Cons 1 $
+    Cons 2 EmptyList
 
 main :: IO ()
 main = do
@@ -86,3 +116,4 @@ main = do
   let noaaResponse = decode jsonData :: Maybe NOAAResponse
   let noaaResults = results <$> noaaResponse
   printResults noaaResults
+  print (encode noaaResponse)

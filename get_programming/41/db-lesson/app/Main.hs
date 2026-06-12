@@ -56,6 +56,15 @@ addUser :: String -> IO ()
 addUser username =
   withConn "tools.db" (addUserAction username)
 
+addTool :: String -> String -> IO ()
+addTool toolName toolDescription = withConn "tools.db" $
+  \conn -> do
+    currentDay <- utctDay <$> getCurrentTime
+    execute
+      conn
+      "INSERT INTO tools (name, description , lastReturned, timesBorrowed) VALUES (?,?,?,?);"
+      (toolName, toolDescription, currentDay, 0 :: Int)
+
 checkout :: Int -> Int -> IO ()
 checkout userId toolId = withConn "tools.db" $
   \conn -> do
@@ -194,11 +203,20 @@ promptAndCheckin = do
   checkinToolId <- read <$> getLine
   checkinAndUpdate checkinToolId
 
+promptAndAddTool :: IO ()
+promptAndAddTool = do
+  print "Tool name:"
+  toolName <- getLine
+  print "Tool description:"
+  description <- getLine
+  addTool toolName description
+
 performCommand :: String -> IO ()
 performCommand command
   | command == "users" = printUsers >> main
   | command == "tools" = printTools >> main
   | command == "addUser" = promptAndAddUser >> main
+  | command == "addTool" = promptAndAddTool >> main
   | command == "checkout" = promptAndCheckout >> main
   | command == "checkin" = promptAndCheckin >> main
   | command == "in" = printAvailable >> main

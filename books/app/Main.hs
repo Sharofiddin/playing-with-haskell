@@ -4,57 +4,97 @@ module Main (main) where
 
 import Control.Applicative
 import Data.Aeson
-import Data.Aeson.Encoding (value)
-import Data.Aeson.KeyMap (mapKeyVal)
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Map as Map
-import Data.Maybe (fromJust, isNothing)
-import GHC.Base (KindRep (KindRepVar))
-import Network.HTTP.Client (Request (host, method, path, port, queryString, secure), RequestBody (RequestBodyBuilder), Response (responseBody), defaultRequest, httpLbs, managerSetProxy, newManager, parseRequest, proxyEnvironment)
+import Data.Maybe (fromJust, isJust)
+import Data.Time (UTCTime (utctDayTime), getCurrentTime, utc, utcToZonedTime)
+import Data.Time.Format.ISO8601 (utcTimeFormat)
+import Database.SQLite.Simple (Connection, FromRow (fromRow), Only (Only), close, execute, field, open, query)
+import Network.HTTP.Client (Request (host, method, path, port, queryString, secure), Response (responseBody), defaultRequest, httpLbs, managerSetProxy, newManager, proxyEnvironment, withConnection)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 
 data Book = Book
-  { bibKey :: String
+  { id :: Maybe Int
+  , bibKey :: String
   , infoUrl :: String
   , preview :: String
   , previewUrl :: String
   , thumbnailUrl :: String
+  , createdAt :: Maybe UTCTime
   }
   deriving (Show)
 
 instance FromJSON Book where
   parseJSON (Object v) =
     Book
-      <$> v .: "bib_key"
+      <$> v .:! "NA"
+      <*> v .: "bib_key"
       <*> v .: "info_url"
       <*> v .: "preview"
       <*> v .: "preview_url"
       <*> v .: "thumbnail_url"
+      <*> v .:! "Nothing"
   parseJSON _ = empty
+
 libHost :: BC.ByteString
 libHost = "openlibrary.org"
 
 booksPath :: BC.ByteString
 booksPath = "/api/books"
 
-getInnerBook :: Map.Map String Book -> String -> Maybe Book
-getInnerBook bookWrapper isbn =
-  Map.lookup ("ISBN:" <> isbn) bookWrapper
+withDBConn :: (Connection -> IO ()) -> IO ()
+withDBConn action = do
+  conn <- open "books.db"
+  action conn
+  close conn
 
-booksURL :: BC.ByteString
-booksURL = libHost <> booksPath
-main :: IO ()
-main = do
+withDBConnSelect :: (Connection -> IO (Maybe a)) -> IO (Maybe a)
+withDBConnSelect action = do
+  conn <- open "books.db"
+  res <- action conn
+  close conn
+  return res
+
+instance FromRow Book where
+  fromRow =
+    Book
+      <$> field
+      <*> field
+      <*> field
+      <*> field
+      <*> field
+      <*> field
+      <*> field
+
+saveBook :: Book -> IO ()
+saveBook book = withDBConn $ \conn -> do
+  currentDate <- utcToZonedTime utc <$> getCurrentTime
+  let dateStr = show currentDate
+  execute
+    conn
+    "INSERT INTO book (bib_key, info_url, preview, preview_url, thumbnail_url, created_at) VALUES(?,?,?,?,?,?);"
+    (bibKey book, infoUrl book, preview book, previewUrl book, thumbnailUrl book, dateStr)
+
+getBookFromDB :: Connection -> String -> IO (Maybe Book)
+getBookFromDB conn isbn = do
+  resp <-
+    query conn "SELECT * FROM book WHERE bib_key = (?)" (Only $ "ISBN:" <> isbn) :: IO [Book]
+  return $ firstOrNothing resp
+
+firstOrNothing :: [a] -> Maybe a
+firstOrNothing [] = Nothing
+firstOrNothing (x : _) = Just x
+
+getBookFromNet :: BC.ByteString -> IO (Response BL.ByteString)
+getBookFromNet isbn = do
   let settings =
         managerSetProxy
           (proxyEnvironment Nothing)
           tlsManagerSettings
-  putStrLn "Enter ISBN"
-  isbn <- BC.getLine
-  man <- newManager settings
   let initialRequest =
         defaultRequest
+  man <- newManager settings
   let req =
         initialRequest
           { method = "GET"
@@ -64,11 +104,29 @@ main = do
           , path = booksPath
           , queryString = "bibkeys=ISBN%3A" <> isbn <> "&format=json"
           }
-  res <- httpLbs req man
-  let body = responseBody res
-  let jsonBody =
-        (<$>)
-          getInnerBook
-          (decode body)
-          <*> Just (BC.unpack isbn)
-  print jsonBody
+  httpLbs req man
+
+getInnerBook :: String -> Map.Map String Book -> Maybe Book
+getInnerBook isbn = Map.lookup ("ISBN:" <> isbn)
+
+getBook :: BC.ByteString -> IO (Maybe Book)
+getBook isbn = withDBConnSelect $ \conn -> do
+  resp <- getBookFromDB conn (BC.unpack isbn)
+  case resp of
+    Just _ -> do return resp
+    Nothing -> do
+      bookFromNet <- getBookFromNet isbn
+      let body = responseBody bookFromNet
+      let book = decode body >>= getInnerBook (BC.unpack isbn)
+      return book
+
+main :: IO ()
+main = do
+  putStrLn "Enter ISBN"
+  isbn <- BC.getLine
+  book <- getBook isbn
+  case book of
+    Just b -> do
+      saveBook b
+      print b
+    Nothing -> print "Book not found"

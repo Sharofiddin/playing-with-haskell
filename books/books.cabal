@@ -54,6 +54,8 @@ executable books-exe
     , containers
     , http-client
     , http-client-tls
+    , sqlite-simple
+    , time
   default-language: Haskell2010
 
 test-suite books-test

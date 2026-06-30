@@ -9,17 +9,18 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Map as Map
 import Data.Time (UTCTime, getCurrentTime)
 import Database.SQLite.Simple (Connection, FromRow (fromRow), Only (Only), close, execute, field, open, query)
+import qualified GI.Gtk as Gtk
 import Network.HTTP.Client (Request (host, method, path, port, queryString, secure), Response (responseBody), defaultRequest, httpLbs, managerSetProxy, newManager, proxyEnvironment)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 
 data Book = Book
-  { id :: Maybe Int,
-    bibKey :: String,
-    infoUrl :: String,
-    preview :: String,
-    previewUrl :: String,
-    thumbnailUrl :: String,
-    createdAt :: Maybe UTCTime
+  { id :: Maybe Int
+  , bibKey :: String
+  , infoUrl :: String
+  , preview :: String
+  , previewUrl :: String
+  , thumbnailUrl :: String
+  , createdAt :: Maybe UTCTime
   }
   deriving (Show)
 
@@ -94,12 +95,12 @@ getBookFromNet isbn = do
   man <- newManager settings
   let req =
         initialRequest
-          { method = "GET",
-            port = 443,
-            host = libHost,
-            secure = True,
-            path = booksPath,
-            queryString = "bibkeys=ISBN%3A" <> isbn <> "&format=json"
+          { method = "GET"
+          , port = 443
+          , host = libHost
+          , secure = True
+          , path = booksPath
+          , queryString = "bibkeys=ISBN%3A" <> isbn <> "&format=json"
           }
   httpLbs req man
 
@@ -120,7 +121,11 @@ getBook isbn = withDBConnSelect $ \conn -> do
           saveBook b
           getBookFromDB conn (BC.unpack isbn)
         Nothing -> return Nothing
-
+activate :: Gtk.Application -> IO ()
+activate app = do 
+  window <- new Gtk.ApplicationWindow [#application := app,
+                                       #title = "Hi there"]
+  window.show                                       
 main :: IO ()
 main = do
   putStrLn "Enter ISBN"

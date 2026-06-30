@@ -53,7 +53,7 @@ executables:
       - containers
       - sqlite-simple
       - time
-      - binary
+      - gi-gtk4
 
 tests:
   books-test:

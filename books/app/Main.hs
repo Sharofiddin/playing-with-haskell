@@ -7,21 +7,19 @@ import Data.Aeson
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Map as Map
-import Data.Maybe (fromJust, isJust)
-import Data.Time (UTCTime (utctDayTime), getCurrentTime, utc, utcToZonedTime)
-import Data.Time.Format.ISO8601 (utcTimeFormat)
+import Data.Time (UTCTime, getCurrentTime)
 import Database.SQLite.Simple (Connection, FromRow (fromRow), Only (Only), close, execute, field, open, query)
-import Network.HTTP.Client (Request (host, method, path, port, queryString, secure), Response (responseBody), defaultRequest, httpLbs, managerSetProxy, newManager, proxyEnvironment, withConnection)
+import Network.HTTP.Client (Request (host, method, path, port, queryString, secure), Response (responseBody), defaultRequest, httpLbs, managerSetProxy, newManager, proxyEnvironment)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 
 data Book = Book
-  { id :: Maybe Int
-  , bibKey :: String
-  , infoUrl :: String
-  , preview :: String
-  , previewUrl :: String
-  , thumbnailUrl :: String
-  , createdAt :: Maybe UTCTime
+  { id :: Maybe Int,
+    bibKey :: String,
+    infoUrl :: String,
+    preview :: String,
+    previewUrl :: String,
+    thumbnailUrl :: String,
+    createdAt :: Maybe UTCTime
   }
   deriving (Show)
 
@@ -69,12 +67,11 @@ instance FromRow Book where
 
 saveBook :: Book -> IO ()
 saveBook book = withDBConn $ \conn -> do
-  currentDate <- utcToZonedTime utc <$> getCurrentTime
-  let dateStr = show currentDate
+  createdTime <- getCurrentTime
   execute
     conn
     "INSERT INTO book (bib_key, info_url, preview, preview_url, thumbnail_url, created_at) VALUES(?,?,?,?,?,?);"
-    (bibKey book, infoUrl book, preview book, previewUrl book, thumbnailUrl book, dateStr)
+    (bibKey book, infoUrl book, preview book, previewUrl book, thumbnailUrl book, createdTime)
 
 getBookFromDB :: Connection -> String -> IO (Maybe Book)
 getBookFromDB conn isbn = do
@@ -97,12 +94,12 @@ getBookFromNet isbn = do
   man <- newManager settings
   let req =
         initialRequest
-          { method = "GET"
-          , port = 443
-          , host = libHost
-          , secure = True
-          , path = booksPath
-          , queryString = "bibkeys=ISBN%3A" <> isbn <> "&format=json"
+          { method = "GET",
+            port = 443,
+            host = libHost,
+            secure = True,
+            path = booksPath,
+            queryString = "bibkeys=ISBN%3A" <> isbn <> "&format=json"
           }
   httpLbs req man
 
@@ -118,7 +115,11 @@ getBook isbn = withDBConnSelect $ \conn -> do
       bookFromNet <- getBookFromNet isbn
       let body = responseBody bookFromNet
       let book = decode body >>= getInnerBook (BC.unpack isbn)
-      return book
+      case book of
+        Just b -> do
+          saveBook b
+          getBookFromDB conn (BC.unpack isbn)
+        Nothing -> return Nothing
 
 main :: IO ()
 main = do
@@ -127,6 +128,5 @@ main = do
   book <- getBook isbn
   case book of
     Just b -> do
-      saveBook b
       print b
-    Nothing -> print "Book not found"
+    Nothing -> print ("Book not found" :: String)

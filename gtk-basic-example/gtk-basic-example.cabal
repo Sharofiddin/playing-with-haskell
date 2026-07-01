@@ -4,11 +4,11 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 
-name:           books
+name:           gtk-basic-example
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/books#readme>
-homepage:       https://github.com/githubuser/books#readme
-bug-reports:    https://github.com/githubuser/books/issues
+description:    Please see the README on GitHub at <https://github.com/githubuser/gtk-basic-example#readme>
+homepage:       https://github.com/githubuser/gtk-basic-example#readme
+bug-reports:    https://github.com/githubuser/gtk-basic-example/issues
 author:         Author name here
 maintainer:     example@example.com
 copyright:      2026 Author name here
@@ -21,15 +21,15 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/books
+  location: https://github.com/githubuser/gtk-basic-example
 
 library
   exposed-modules:
       Lib
   other-modules:
-      Paths_books
+      Paths_gtk_basic_example
   autogen-modules:
-      Paths_books
+      Paths_gtk_basic_example
   hs-source-dirs:
       src
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
@@ -37,41 +37,33 @@ library
       base >=4.7 && <5
   default-language: Haskell2010
 
-executable books-exe
+executable gtk-basic-example-exe
   main-is: Main.hs
   other-modules:
-      Paths_books
+      Paths_gtk_basic_example
   autogen-modules:
-      Paths_books
+      Paths_gtk_basic_example
   hs-source-dirs:
       app
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      aeson
-    , base >=4.7 && <5
-    , books
-    , bytestring
-    , containers
+      base >=4.7 && <5
     , gi-gtk4
+    , gtk-basic-example
     , haskell-gi-base
-    , http-client
-    , http-client-tls
-    , sqlite-simple
-    , text
-    , time
   default-language: Haskell2010
 
-test-suite books-test
+test-suite gtk-basic-example-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Paths_books
+      Paths_gtk_basic_example
   autogen-modules:
-      Paths_books
+      Paths_gtk_basic_example
   hs-source-dirs:
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
-    , books
+    , gtk-basic-example
   default-language: Haskell2010
